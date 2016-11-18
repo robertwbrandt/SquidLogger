@@ -1,0 +1,296 @@
+<?xml version="1.0" ?>
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+<head>
+<title>log_mysql_daemon</title>
+<meta http-equiv="content-type" content="text/html; charset=utf-8" />
+<link rev="made" href="mailto:root@localhost" />
+</head>
+
+<body style="background-color: white">
+
+
+<!-- INDEX BEGIN -->
+<div name="index">
+<p><a name="__index__"></a></p>
+
+<ul>
+
+	<li><a href="#name">NAME</a></li>
+	<li><a href="#synopsis">SYNOPSIS</a></li>
+	<li><a href="#description">DESCRIPTION</a></li>
+	<li><a href="#configuration">CONFIGURATION</a></li>
+	<ul>
+
+		<li><a href="#squid_configuration">Squid configuration</a></li>
+		<ul>
+
+			<li><a href="#logformat_directive">logformat directive</a></li>
+			<li><a href="#access_log_directive">access_log directive</a></li>
+			<li><a href="#logfile_daemon_directive">logfile_daemon directive</a></li>
+			<li><a href="#additional_settings_for_squid_setups_using_ntml_authentication">Additional settings for squid setups using NTML authentication</a></li>
+		</ul>
+
+		<li><a href="#configuration_file">Configuration file</a></li>
+		<ul>
+
+			<li><a href="#security_note">Security note</a></li>
+		</ul>
+
+		<li><a href="#database_configuration">Database configuration</a></li>
+		<ul>
+
+			<li><a href="#database">Database</a></li>
+			<li><a href="#user">User</a></li>
+			<li><a href="#tables_and_views">Tables and views</a></li>
+		</ul>
+
+	</ul>
+
+	<li><a href="#version_information">VERSION INFORMATION</a></li>
+	<li><a href="#data_extraction">DATA EXTRACTION</a></li>
+	<ul>
+
+		<li><a href="#speed_issues">Speed issues</a></li>
+	</ul>
+
+	<li><a href="#bugs___todo">BUGS &amp; TODO</a></li>
+	<ul>
+
+		<li><a href="#squid_version">Squid version</a></li>
+		<li><a href="#table_cleanup">Table cleanup</a></li>
+		<li><a href="#testing">Testing</a></li>
+	</ul>
+
+	<li><a href="#dependencies">DEPENDENCIES</a></li>
+	<li><a href="#changelog">CHANGELOG</a></li>
+	<li><a href="#author">AUTHOR</a></li>
+	<li><a href="#copyright_and_license">COPYRIGHT AND LICENSE</a></li>
+</ul>
+
+<hr name="index" />
+</div>
+<!-- INDEX END -->
+
+<p>
+</p>
+<h1><a name="name">NAME</a></h1>
+<p><code>log_mysql_daemon.pl</code> - Write squid access log into a mysql database</p>
+<p>
+</p>
+<hr />
+<h1><a name="synopsis">SYNOPSIS</a></h1>
+<pre>
+  mysql&gt; CREATE DATABASE squid_log;</pre>
+<pre>
+  mysql -u root -p squid_log &lt; log_mysql_daemon.sql</pre>
+<pre>
+  cp log_mysql_daemon.pl /path/to/squid/libexec/</pre>
+<p>then, in squid.conf:</p>
+<pre>
+  logformat squid_mysql  %ts.%03tu %6tr %&gt;a %Ss %03Hs %&lt;st %rm %ru %un %Sh %&lt;A %mt</pre>
+<pre>
+  access_log daemon:/etc/squid/log_mysql_daemon.conf squid_mysql</pre>
+<pre>
+  logfile_daemon /path/to/squid/libexec/log_mysql_daemon.pl</pre>
+<p>
+</p>
+<hr />
+<h1><a name="description">DESCRIPTION</a></h1>
+<p>This script exploits the new logfile daemon support available in squid 2.7 to store access log entries in a MySQL database.</p>
+<p>
+</p>
+<hr />
+<h1><a name="configuration">CONFIGURATION</a></h1>
+<p>
+</p>
+<h2><a name="squid_configuration">Squid configuration</a></h2>
+<p>
+</p>
+<h3><a name="logformat_directive">logformat directive</a></h3>
+<p>This script expects the following log format (it's the default 'squid' log format without the two '/' characters):</p>
+<pre>
+  logformat squid_mysql  %ts.%03tu %6tr %&gt;a %Ss %03Hs %&lt;st %rm %ru %un %Sh %&lt;A %mt</pre>
+<p>
+</p>
+<h3><a name="access_log_directive">access_log directive</a></h3>
+<p>The path to the access log file now specifies the location of the script config file</p>
+<pre>
+  access_log daemon:/etc/squid/log_mysql_daemon.conf squid_mysql</pre>
+<p>The 'daemon' prefix is mandatory and tells squid that the logfile_daemon is to be used instead of the normal file logging.</p>
+<p>The path shown here is just an example.</p>
+<p>The last parameter, 'squid_mysql' in the example, tells squid which log format to use when writing lines to the log daemon.</p>
+<p>
+</p>
+<h3><a name="logfile_daemon_directive">logfile_daemon directive</a></h3>
+<p>This is the current way of telling squid where the logfile daemon resides.</p>
+<pre>
+  logfile_daemon /path/to/squid/libexec/log_mysql_daemon.pl</pre>
+<p>The script must be copied to the location specified in the directive.</p>
+<p>
+</p>
+<h3><a name="additional_settings_for_squid_setups_using_ntml_authentication">Additional settings for squid setups using NTML authentication</a></h3>
+<p>When using NTLM Authentication, for every request squid logs two TCP_DENIED/407, which are useless and only help grow even more the database. To prevent logging of these lines add the following lines before the <code>access_log</code> directive:</p>
+<pre>
+  acl Auth_Challenge rep_header X-Squid-Error ERR_CACHE_ACCESS_DENIED
+  log_access deny Auth_challenge</pre>
+<p>
+</p>
+<h2><a name="configuration_file">Configuration file</a></h2>
+<p>The configuration file contains the database connection parameters, written as key: value pairs, one per line.</p>
+<p>Example:</p>
+<pre>
+  host: localhost
+  database: squid_log
+  table: access_log
+  user: squid
+  pass: 123456</pre>
+<p>(It's a YAML file.)</p>
+<dl>
+<dt><strong><a name="host" class="item">host</a></strong></dt>
+
+<dd>
+<p>Host where the mysql server is running. If unspecified, 'localhost' is assumed.</p>
+</dd>
+<dt><strong><a name="database" class="item">database</a></strong></dt>
+
+<dd>
+<p>Name of the database to connect to. If unspecified, 'squid_log' is assumed.</p>
+</dd>
+<dt><strong><a name="table" class="item">table</a></strong></dt>
+
+<dd>
+<p>Name of the database table where log lines are stored. If unspecified, 'access_log' is assumed.</p>
+</dd>
+<dt><strong><a name="username" class="item">username</a></strong></dt>
+
+<dd>
+<p>Username to use when connecting to the database. If unspecified, 'squid' is assumed.</p>
+</dd>
+<dt><strong><a name="password" class="item">password</a></strong></dt>
+
+<dd>
+<p>Password to use when connecting to the database. If unspecified, no password is used.</p>
+</dd>
+</dl>
+<p>To leave all fields to their default values, just create the configuration file and don't write anything in it.</p>
+<p>To only specify the database password, put this single line in the configuration file:</p>
+<pre>
+  pass: &lt;password&gt;</pre>
+<p>
+</p>
+<h3><a name="security_note">Security note</a></h3>
+<p>This file should be owned by root and its permission bits should be set to 600.</p>
+<p>
+</p>
+<h2><a name="database_configuration">Database configuration</a></h2>
+<p>Let's call the database 'squid_log' and the log table 'access_log'. The username and password for the db connection will be both 'squid'.</p>
+<p>
+</p>
+<h3><a name="database">Database</a></h3>
+<p>Create the database:</p>
+<pre>
+  CREATE DATABASE squid_log;</pre>
+<p>
+</p>
+<h3><a name="user">User</a></h3>
+<p>Create the user:</p>
+<pre>
+  GRANT INSERT,SELECT ON squid_log.* TO 'squid'@'localhost' IDENTIFIED BY 'squid';
+  FLUSH PRIVILEGES;</pre>
+<p>Note that only INSERT and SELECT privileges are granted to the 'squid' user. This ensures that the logfile daemon script cannot change or modify the log entries.</p>
+<p>
+</p>
+<h3><a name="tables_and_views">Tables and views</a></h3>
+<p>Create the log table and some sample views by using the provided sql scripts:</p>
+<p><code>cat log_mysql_daemon-table.sql log_mysql_daemon-views.sql | mysql -u root -p squid_log</code></p>
+<p>
+</p>
+<hr />
+<h1><a name="version_information">VERSION INFORMATION</a></h1>
+<p>This document refers to <code>log_mysql_daemon.pl</code> script version 0.3.</p>
+<p>
+</p>
+<hr />
+<h1><a name="data_extraction">DATA EXTRACTION</a></h1>
+<p>Please see the provided log_mysql_daemon-views.sql</p>
+<p>
+</p>
+<h2><a name="speed_issues">Speed issues</a></h2>
+<p>The myisam storage engine is known to be faster than the innodb one, so although it doesn't support transactions and referential integrity, it think it's more appropriate in this scenario. If want to change this, open log_mysql_daemon-table.sql and edit the &quot;ENGINE=MYISAM&quot; directive.</p>
+<p>Indexes should be created according to the queries that are more frequently run. The DDL script only creates an implicit index for the primary key column.</p>
+<p>
+</p>
+<hr />
+<h1><a name="bugs___todo">BUGS &amp; TODO</a></h1>
+<p>
+</p>
+<h2><a name="squid_version">Squid version</a></h2>
+<p>This script exploit the <code>logfile_daemon</code> feature implemented in current squid 2 version.</p>
+<p>Squid 3 doesn't have this feature, therefore this script can't be used with squid 3 installations.
+UPDATE: Squid 3.HEAD has reintroduced logfile_daemon support. This script has been tested with Squid 3.HEAD-20100601.</p>
+<p>
+</p>
+<h2><a name="table_cleanup">Table cleanup</a></h2>
+<p>This script currently implements only the <code>L</code> command (i.e. &quot;append a line to the log&quot;), therefore the log lines are never purged from the table. This approach has an obvious scalability problem.</p>
+<p>One solution would be to implement e.g. the &quot;rotate log&quot; command in a way that would calculate some summary values, put them in a &quot;summary table&quot; and then delete the lines used to caluclate those values.</p>
+<p>Similar cleanup code could be implemented in an external script and run periodically independently from squid log commands.</p>
+<p>
+</p>
+<h2><a name="testing">Testing</a></h2>
+<p>This script has been tested in low-volume scenarios (20 clients, less than 10 req/s). Tests in high volume environments could reveal performance bottlenecks and bugs.</p>
+<p>
+</p>
+<hr />
+<h1><a name="dependencies">DEPENDENCIES</a></h1>
+<p>This script requries the following Perl modules:</p>
+<p><code>DBI</code></p>
+<p><code>English</code></p>
+<p><code>Readonly</code></p>
+<p><code>Carp</code></p>
+<p><code>URI</code></p>
+<p><code>YAML</code></p>
+<p>
+</p>
+<hr />
+<h1><a name="changelog">CHANGELOG</a></h1>
+<dl>
+<dt><strong><a name="v0_3" class="item">v0.3</a></strong></dt>
+
+<dd>
+<p>Incompatible change: database connection parameters are now specified using a config file. The access_log directive is used to specify the config file absolute path. This change was suggested by Diego Morato, who noticed that database connection credentials could be easily seen by calling ps or top and showing program arguments.</p>
+<p>New dependency: YAML.</p>
+</dd>
+<dt><strong><a name="v0_2" class="item">v0.2</a></strong></dt>
+
+<dd>
+<p>Store only domain:port instead of the entire url of each request.</p>
+<p>Added a couple of views to obtain the most requested and traffic-generating domains.</p>
+<p>Added a view which shows saved traffic as percent of total daily traffic (note: saved bandwidth is better measured by byte hit ratio, see <a href="http://wiki.squid-cache.org/SquidFaq/InnerWorkings">http://wiki.squid-cache.org/SquidFaq/InnerWorkings</a> for more informations).</p>
+<p>Updated POD with config directives for ntml-auth squid setups (<a href="mailto:diego.morato@hotmail.com">diego.morato@hotmail.com</a>)</p>
+<p>Try to reconnect if mysql server goes away.</p>
+<p>Thanks to Diego Morato for his suggestions.</p>
+</dd>
+<dt><strong><a name="v0_1" class="item">v0.1</a></strong></dt>
+
+<dd>
+<p>Initial release.</p>
+</dd>
+</dl>
+<p>
+</p>
+<hr />
+<h1><a name="author">AUTHOR</a></h1>
+<p>Marcello Romani, <a href="mailto:marcello.romani@libero.it">marcello.romani@libero.it</a></p>
+<p>
+</p>
+<hr />
+<h1><a name="copyright_and_license">COPYRIGHT AND LICENSE</a></h1>
+<p>Copyright (C) 2008 by Marcello Romani</p>
+<p>This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.8.8 or,
+at your option, any later version of Perl 5 you may have available.</p>
+
+</body>
+
+</html>
